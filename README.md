@@ -43,108 +43,86 @@ class PetsController < ActionController::Base
 
   swagger_path '/pets/{id}' do
     operation :get do
-      key :description, 'Returns a single pet if the user has access'
-      key :operationId, 'findPetById'
-      key :tags, [
+      description 'Returns a single pet if the user has access'
+      operationId 'findPetById'
+      tags [
         'pet'
       ]
-      parameter do
-        key :name, :id
-        key :in, :path
-        key :description, 'ID of pet to fetch'
-        key :required, true
-        key :type, :integer
-        key :format, :int64
+      parameter :id, in: :path do
+        description 'ID of pet to fetch'
+        required true
+        type :integer
+        format :int64
       end
       response 200 do
-        key :description, 'pet response'
-        schema do
-          key :'$ref', :Pet
-        end
+        description 'pet response'
+        schema '$ref': :Pet
       end
       response :default do
-        key :description, 'unexpected error'
-        schema do
-          key :'$ref', :ErrorModel
-        end
+        description 'unexpected error'
+        schema '$ref': :ErrorModel
       end
     end
   end
   swagger_path '/pets' do
     operation :get do
-      key :description, 'Returns all pets from the system that the user has access to'
-      key :operationId, 'findPets'
-      key :produces, [
+      description 'Returns all pets from the system that the user has access to'
+      operationId 'findPets'
+      produces [
         'application/json',
         'text/html',
       ]
-      key :tags, [
+      tags [
         'pet'
       ]
-      parameter do
-        key :name, :tags
-        key :in, :query
-        key :description, 'tags to filter by'
-        key :required, false
-        key :type, :array
+      parameter :tags, in: :query do
+        description 'tags to filter by'
+        required false
+        type :array
         items do
-          key :type, :string
+          type :string
         end
-        key :collectionFormat, :csv
+        collectionFormat :csv
       end
-      parameter do
-        key :name, :limit
-        key :in, :query
-        key :description, 'maximum number of results to return'
-        key :required, false
-        key :type, :integer
-        key :format, :int32
+      parameter :limit, in: :query do
+        description 'maximum number of results to return'
+        required false
+        type :integer
+        format :int32
       end
       response 200 do
-        key :description, 'pet response'
+        description 'pet response'
         schema do
-          key :type, :array
-          items do
-            key :'$ref', :Pet
-          end
+          type :array
+          items '$ref': :Pet
         end
       end
       response :default do
-        key :description, 'unexpected error'
-        schema do
-          key :'$ref', :ErrorModel
-        end
+        description 'unexpected error'
+        schema '$ref': :ErrorModel
       end
     end
     operation :post do
-      key :description, 'Creates a new pet in the store.  Duplicates are allowed'
-      key :operationId, 'addPet'
-      key :produces, [
+      description 'Creates a new pet in the store.  Duplicates are allowed'
+      operationId 'addPet'
+      produces [
         'application/json'
       ]
-      key :tags, [
+      tags [
         'pet'
       ]
-      parameter do
-        key :name, :pet
-        key :in, :body
-        key :description, 'Pet to add to the store'
-        key :required, true
-        schema do
-          key :'$ref', :PetInput
-        end
+      parameter :pet, in: :body do
+        description 'Pet to add to the store'
+        required true
+        schema '$ref': :PetInput
       end
       response 200 do
-        key :description, 'pet response'
-        schema do
-          key :'$ref', :Pet
-        end
+        description 'pet response'
+        schema '$ref': :Pet
       end
       response :default do
-        key :description, 'unexpected error'
-        schema do
-          key :'$ref', :ErrorModel
-        end
+        description 'unexpected error'
+        schema '$ref': :ErrorModel
       end
     end
   end
@@ -162,29 +140,27 @@ class Pet < ActiveRecord::Base
   include Swagger::Blocks
 
   swagger_schema :Pet do
-    key :required, [:id, :name]
+    required [:id, :name]
     property :id do
-      key :type, :integer
-      key :format, :int64
+      type :integer
+      format :int64
     end
     property :name do
-      key :type, :string
+      type :string
     end
     property :tag do
-      key :type, :string
+      type :string
     end
   end
 
   swagger_schema :PetInput do
     allOf do
+      schema '$ref': :Pet
       schema do
-        key :'$ref', :Pet
-      end
-      schema do
-        key :required, [:name]
+        required [:name]
         property :id do
-          key :type, :integer
-          key :format, :int64
+          type :integer
+          format :int64
         end
       end
     end
@@ -201,13 +177,13 @@ class ErrorModel  # Notice, this is just a plain ruby object.
   include Swagger::Blocks
 
   swagger_schema :ErrorModel do
-    key :required, [:code, :message]
+    required [:code, :message]
     property :code do
-      key :type, :integer
-      key :format, :int32
+      type :integer
+      format :int32
     end
     property :message do
-      key :type, :string
+      type :string
     end
   end
 end
@@ -226,32 +202,30 @@ class ApidocsController < ActionController::Base
   include Swagger::Blocks
 
   swagger_root do
-    key :swagger, '2.0'
+    swagger '2.0'
     info do
-      key :version, '1.0.0'
-      key :title, 'Swagger Petstore'
-      key :description, 'A sample API that uses a petstore as an example to ' \
+      version '1.0.0'
+      title 'Swagger Petstore'
+      description 'A sample API that uses a petstore as an example to ' \
                         'demonstrate features in the swagger-2.0 specification'
-      key :termsOfService, 'http://helloreverb.com/terms/'
-      contact do
-        key :name, 'Wordnik API Team'
+      termsOfService 'http://helloreverb.com/terms/'
+      contact name: 'Wordnik API Team' do
+        url 'http://developer.wordnik.com'
       end
-      license do
-        key :name, 'MIT'
+      license name: 'MIT' do
       end
     end
-    tag do
-      key :name, 'pet'
-      key :description, 'Pets operations'
+    tag name: 'pet' do
+      description 'Pets operations'
       externalDocs do
-        key :description, 'Find more info here'
-        key :url, 'https://swagger.io'
+        description 'Find more info here'
+        url 'https://swagger.io'
       end
     end
-    key :host, 'petstore.swagger.wordnik.com'
-    key :basePath, '/api'
-    key :consumes, ['application/json']
-    key :produces, ['application/json']
+    host 'petstore.swagger.wordnik.com'
+    basePath '/api'
+    consumes ['application/json']
+    produces ['application/json']
   end
 
   # A list of all classes that have swagger_* declarations.
@@ -284,19 +258,17 @@ To support Swagger's definitions for API key auth or OAuth2, use `security_defin
 
 ```Ruby
   swagger_root do
-    key :swagger, '2.0'
+    swagger '2.0'
 
     # ...
 
-    security_definition :api_key do
-      key :type, :apiKey
-      key :name, :api_key
-      key :in, :header
+    security_definition :api_key, in: :header do
+      type :apiKey
     end
     security_definition :petstore_auth do
-      key :type, :oauth2
-      key :authorizationUrl, 'http://swagger.io/api/oauth/dialog'
-      key :flow, :implicit
+      type :oauth2
+      authorizationUrl 'http://swagger.io/api/oauth/dialog'
+      flow :implicit
       scopes do
         key 'write:pets', 'modify pets in your account'
         key 'read:pets', 'read your pets'
@@ -347,7 +319,7 @@ end
 ```
 
 ```ruby
-parameter paramType: :path, name: :petId do
+parameter name: :petId, paramType: :path do
   key :description, 'ID of pet that needs to be fetched'
   key :type, :string
 end
@@ -361,6 +333,20 @@ parameter paramType: :path,
 ```
 
 These inline keys can be used on any block, not just `parameter` blocks.
+
+#### Key methods
+
+Also, there are methods defined for most keys (exceptions are `$ref` `name`, `method` and `in`).
+
+The following call is equivalent to the calls in the previous section.
+
+```ruby
+parameter :petId do
+  paramType :path
+  description 'ID of pet that needs to be fetched'
+  type :string
+end
+```
 
 #### Writing JSON to a file
 

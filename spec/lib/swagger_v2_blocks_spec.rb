@@ -9,146 +9,115 @@ class PetControllerV2
   include Swagger::Blocks
 
   swagger_root host: 'petstore.swagger.wordnik.com' do
-    key :swagger, '2.0'
+    swagger '2.0'
     info version: '1.0.0' do
-      key :title, 'Swagger Petstore'
-      key :description, 'A sample API that uses a petstore as an example to ' \
+      title 'Swagger Petstore'
+      description 'A sample API that uses a petstore as an example to ' \
                         'demonstrate features in the swagger-2.0 specification'
-      key :termsOfService, 'http://helloreverb.com/terms/'
-      contact do
-        key :name, 'Wordnik API Team'
-      end
-      license do
-        key :name, 'MIT'
-      end
+      termsOfService 'http://helloreverb.com/terms/'
+      contact name: 'Wordnik API Team'
+      license name: 'MIT'
     end
-    key :basePath, '/api'
-    key :schemes, ['http']
-    key :consumes, ['application/json']
-    key :produces, ['application/json']
-    security_definition :api_key, type: :apiKey do
-      key :name, :api_key
-      key :in, :header
-    end
+    basePath '/api'
+    schemes ['http']
+    consumes ['application/json']
+    produces ['application/json']
+    security_definition :api_key, type: :apiKey, name: :api_key, in: :header
     security_definition :petstore_auth do
-      key :type, :oauth2
-      key :authorizationUrl, 'http://swagger.io/api/oauth/dialog'
-      key :flow, :implicit
+      type :oauth2
+      authorizationUrl 'http://swagger.io/api/oauth/dialog'
+      flow :implicit
       scopes 'write:pets' => 'modify pets in your account' do
         key 'read:pets', 'read your pets'
       end
     end
     tag name: 'pet' do
-      key :description, 'Pets operations'
-      externalDocs description: 'Find more info here' do
-        key :url, 'https://swagger.io'
+      description 'Pets operations'
+      externalDocs do
+        description 'Find more info here'
+        url 'https://swagger.io'
       end
     end
   end
 
   swagger_path '/pets' do
     operation :get do
-      key :description, 'Returns all pets from the system that the user has access to'
-      key :operationId, 'findPets'
-      key :produces, [
+      description 'Returns all pets from the system that the user has access to'
+      operationId 'findPets'
+      produces [
         'application/json',
         'application/xml',
         'text/xml',
         'text/html',
       ]
-      parameter do
-        key :name, :tags
-        key :in, :query
-        key :description, 'tags to filter by'
-        key :required, false
-        key :type, :array
+      parameter :tags, in: :query, required: false do
+        description 'tags to filter by'
+        type :array
         items do
-          key :type, :string
+          type :string
         end
-        key :collectionFormat, :csv
+        collectionFormat :csv
       end
-      parameter do
-        key :name, :limit
-        key :in, :query
-        key :description, 'maximum number of results to return'
-        key :required, false
-        key :type, :integer
-        key :format, :int32
+      parameter :limit, in: :query, required: false, type: :integer do
+        description 'maximum number of results to return'
+        format :int32
       end
       response 200 do
-        key :description, 'pet response'
+        description 'pet response'
         schema type: :array do
-          items do
-            key :'$ref', :Pet
-          end
+          items '$ref': :Pet
         end
       end
       response :default do
-        key :description, 'unexpected error'
-        schema do
-          key :'$ref', :ErrorModel
-        end
+        description 'unexpected error'
+        schema '$ref': :ErrorModel
       end
     end
     operation :post do
-      key :description, 'Creates a new pet in the store.  Duplicates are allowed'
-      key :operationId, 'addPet'
-      key :produces, [
+      description 'Creates a new pet in the store.  Duplicates are allowed'
+      operationId 'addPet'
+      produces [
         'application/json'
       ]
-      parameter do
-        key :name, :pet
-        key :in, :body
-        key :description, 'Pet to add to the store'
-        key :required, true
-        schema do
-          key :'$ref', :PetInput
-        end
+      parameter :pet, in: :body do
+        description 'Pet to add to the store'
+        required true
+        schema '$ref': :PetInput
       end
       response 200 do
-        key :description, 'pet response'
-        schema do
-          # Wrong form here, but checks that #/ strings are not transformed.
-          key :'$ref', '#/parameters/Pet'
-        end
+        description 'pet response'
+        # Wrong form here, but checks that #/ strings are not transformed.
+        schema '$ref': '#/parameters/Pet'
       end
       response :default, description: 'unexpected error' do
-        schema do
-          key :'$ref', :ErrorModel
-        end
+        schema '$ref': :ErrorModel
       end
     end
   end
 
   swagger_path '/pets/{id}' do
-    parameter do
-      key :name, :id
-      key :in, :path
-      key :description, 'ID of pet'
-      key :required, true
-      key :type, :integer
-      key :format, :int64
+    parameter name: :id, in: :path do
+      description 'ID of pet'
+      required true
+      type :integer
+      format :int64
     end
     operation :get do
-      key :description, 'Returns a user based on a single ID, if the user does not have access to the pet'
-      key :operationId, 'findPetById'
-      key :produces, [
+      description 'Returns a user based on a single ID, if the user does not have access to the pet'
+      operationId 'findPetById'
+      produces [
         'application/json',
         'application/xml',
         'text/xml',
         'text/html',
       ]
       response 200 do
-        key :description, 'pet response'
-        schema do
-          key :'$ref', :Pet
-        end
+        description 'pet response'
+        schema'$ref': :Pet
       end
       response :default do
-        key :description, 'unexpected error'
-        schema do
-          key :'$ref', :ErrorModel
-        end
+        description 'unexpected error'
+        schema '$ref': :ErrorModel
       end
       security api_key: []
       security do
@@ -156,16 +125,14 @@ class PetControllerV2
       end
     end
     operation :delete do
-      key :description, 'deletes a single pet based on the ID supplied'
-      key :operationId, 'deletePet'
+      description 'deletes a single pet based on the ID supplied'
+      operationId 'deletePet'
       response 204 do
-        key :description, 'pet deleted'
+        description 'pet deleted'
       end
       response :default do
-        key :description, 'unexpected error'
-        schema do
-          key :'$ref', :ErrorModel
-        end
+        description 'unexpected error'
+        schema '$ref': :ErrorModel
       end
     end
   end
@@ -177,49 +144,47 @@ class PetV2
 
   swagger_schema :Pet, required: [:id, :name] do
     property :id do
-      key :type, :integer
-      key :format, :int64
+      type :integer
+      format :int64
     end
     property :name do
-      key :type, :string
+      type :string
     end
     property :colors do
-      key :type, :array
+      type :array
       items do
-        key :type, :string
+        type :string
       end
     end
   end
 
   swagger_schema :PetInput do
     allOf do
+      schema '$ref': :Pet
       schema do
-        key :'$ref', :Pet
-      end
-      schema do
-        key :required, [:name]
+        required [:name]
         property :id do
-          key :type, :integer
-          key :format, :int64
+          type :integer
+          format :int64
         end
         property :name do
-          key :type, :string
+          type :string
         end
         property :nestedObject do
-          key :type, :object
+          type :object
           property :name do
-            key :type, :string
+            type :string
           end
         end
         property :arrayOfObjects do
-          key :type, :array
+          type :array
           items do
-            key :type, :object
+            type :object
             property :name do
-              key :type, :string
+              type :string
             end
             property :age do
-              key :type, :integer
+              type :integer
             end
           end
         end
@@ -232,13 +197,13 @@ class ErrorModelV2
   include Swagger::Blocks
 
   swagger_schema :ErrorModel do
-    key :required, [:code, :message]
+    required [:code, :message]
     property :code do
-      key :type, :integer
-      key :format, :int32
+      type :integer
+      format :int32
     end
     property :message do
-      key :type, :string
+      type :string
     end
   end
 end

@@ -275,9 +275,29 @@ module Swagger
       def is_swagger_2_0?
         version == '2.0'
       end
+
+      def self.define_key_methods(*args)
+        if args[0].is_a? String
+          version = args[0]
+          args.delete_at 0
+        end
+        args.each do |method|
+          unless self.method_defined? method
+            self.send(:define_method, method) do |value|
+              unless version.nil? or self.version == version
+                raise NotSupportedError.new "Method '#{method}' not supported in Swagger #{self.version}"
+              end
+              self.data[method] = value
+            end
+          end
+        end
+      end
+
     end
 
     class RootNode < Node
+      define_key_methods :swagger, :host, :basePath, :resourcePath, :schemes, :consumes, :produces, :apiVersion
+
       def initialize(*args)
         # An internal list of the user-defined names that uniquely identify each API tree.
         # Only used in Swagger 1.2, but when initializing a root node we haven't seen the
@@ -355,7 +375,9 @@ module Swagger
     end
 
     # v1.2: http://goo.gl/PvwUXj#512-resource-object
-    class ResourceNode < Node; end
+    class ResourceNode < Node
+      define_key_methods :path, :description
+    end
 
     # v1.2: NOTE: in the spec this is different than API Declaration authorizations.
     # v1.2: http://goo.gl/PvwUXj#514-authorizations-object
@@ -369,6 +391,8 @@ module Swagger
     # v1.2: http://goo.gl/PvwUXj#515-authorization-object
     class ResourceListingAuthorizationNode < Node
       GRANT_TYPES = [:implicit, :authorization_code].freeze
+
+      define_key_methods :type, :passAs, :keyname
 
       def scope(inline_keys = nil, &block)
         self.data[:scopes] ||= []
@@ -387,27 +411,47 @@ module Swagger
     # v1.2: http://goo.gl/PvwUXj#513-info-object
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#infoObject
     class InfoNode < Node
-      def contact(inline_keys = nil, &block)
-        raise NotSupportedError unless is_swagger_2_0?
+      define_key_methods :title, :description
+      define_key_methods '1.2', :termsOfServiceUrl, :licenseUrl
+      define_key_methods '2.0', :termsOfService, :version
 
-        self.data[:contact] = Swagger::Blocks::ContactNode.call(version: version, inline_keys: inline_keys, &block)
+      def contact(inline_keys = nil, &block)
+        if is_swagger_2_0?
+          self.data[:contact] = Swagger::Blocks::ContactNode.call(version: version, inline_keys: inline_keys, &block)
+        elsif is_swagger_1_2?
+          self.data[:contact] = inline_keys
+        else
+          raise NotSupportedError
+        end
       end
 
       def license(inline_keys = nil, &block)
-        raise NotSupportedError unless is_swagger_2_0?
-
-        self.data[:license] = Swagger::Blocks::LicenseNode.call(version: version, inline_keys: inline_keys, &block)
+        if is_swagger_2_0?
+          self.data[:license] = Swagger::Blocks::LicenseNode.call(version: version, inline_keys: inline_keys, &block)
+        elsif is_swagger_1_2?
+          self.data[:license] = inline_keys
+        else
+          raise NotSupportedError
+        end
       end
     end
 
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#contact-object
-    class ContactNode < Node; end
+    class ContactNode < Node
+      # :name can't be used as method name
+      define_key_methods :url, :email
+    end
 
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#license-object
-    class LicenseNode < Node; end
+    class LicenseNode < Node
+      # :name can't be used as method name
+      define_key_methods :url
+    end
 
     # v1.2: http://goo.gl/PvwUXj#516-scope-object
-    class ScopeNode < Node; end
+    class ScopeNode < Node
+      define_key_methods :scope, :description
+    end
 
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#scopes-object
     class ScopesNode < Node; end
@@ -425,13 +469,17 @@ module Swagger
 
     # v1.2: http://goo.gl/PvwUXj#518-implicit-object
     class ImplicitNode < Node
+      define_key_methods :tokenName
+
       def login_endpoint(&block)
         self.data[:loginEndpoint] = Swagger::Blocks::LoginEndpointNode.call(version: version, &block)
       end
     end
 
     # v1.2: http://goo.gl/PvwUXj#5110-login-endpoint-object
-    class LoginEndpointNode < Node; end
+    class LoginEndpointNode < Node
+      define_key_methods :url
+    end
 
     # v1.2: http://goo.gl/PvwUXj#519-authorization-code-object
     class AuthorizationCodeNode < Node
@@ -445,10 +493,14 @@ module Swagger
     end
 
     # v1.2: http://goo.gl/PvwUXj#5111-token-request-endpoint-object
-    class TokenRequestEndpointNode < Node; end
+    class TokenRequestEndpointNode < Node
+      define_key_methods :url, :clientIdName, :clientSecretName
+    end
 
     # v1.2: http://goo.gl/PvwUXj#5112-token-endpoint-object
-    class TokenEndpointNode < Node; end
+    class TokenEndpointNode < Node
+      define_key_methods :url, :tokenName
+    end
 
     # -----
     # v1.2: Nodes for API Declarations.
@@ -456,6 +508,8 @@ module Swagger
 
     # v1.2: http://goo.gl/PvwUXj#52-api-declaration
     class ApiDeclarationNode < Node
+      define_key_methods :swaggerVersion, :apiVersion, :basePath, :resourcePath, :produces, :consumes
+
       def api(inline_keys = nil, &block)
         self.data[:apis] ||= []
 
@@ -483,6 +537,8 @@ module Swagger
 
     # v1.2: http://goo.gl/PvwUXj#522-api-object
     class ApiNode < Node
+      define_key_methods :path, :description
+
       def operation(inline_keys = nil, &block)
         self.data[:operations] ||= []
         self.data[:operations] << Swagger::Blocks::OperationNode.call(version: version, inline_keys: inline_keys, &block)
@@ -500,7 +556,13 @@ module Swagger
         self.data[op] = Swagger::Blocks::OperationNode.call(version: version, inline_keys: inline_keys, &block)
       end
 
-      def parameter(inline_keys = nil, &block)
+      def parameter(*args, &block)
+        if args[0].is_a? Symbol
+          inline_keys = args[1] || {}
+          inline_keys[:name] = args[0]
+        else
+          inline_keys = args[0]
+        end
         self.data[:parameters] ||= []
         self.data[:parameters] << Swagger::Blocks::ParameterNode.call(version: version, inline_keys: inline_keys, &block)
       end
@@ -509,8 +571,18 @@ module Swagger
     # v1.2: http://goo.gl/PvwUXj#523-operation-object
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#operation-object
     class OperationNode < Node
+      define_key_methods :summary, :produces, :consumes
+      define_key_methods '2.0', :tags, :description, :operationId, :schemes, :deprecated
+      define_key_methods '1.2', :notes, :nickname, :type
+      # :method (1.2) can't be used as method name
 
-      def parameter(inline_keys = nil, &block)
+      def parameter(*args, &block)
+        if args[0].is_a? Symbol
+          inline_keys = args[1] || {}
+          inline_keys[:name] = args[0]
+        else
+          inline_keys = args[0]
+        end
         self.data[:parameters] ||= []
         self.data[:parameters] << Swagger::Blocks::ParameterNode.call(version: version, inline_keys: inline_keys, &block)
       end
@@ -559,13 +631,18 @@ module Swagger
     end
 
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#externalDocumentationObject
-    class ExternalDocsNode < Node; end
+    class ExternalDocsNode < Node
+      define_key_methods :description, :url
+    end
 
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#securityRequirementObject
     class SecurityRequirementNode < Node; end
 
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#security-scheme-object
     class SecuritySchemeNode < Node
+      define_key_methods :type, :description, :flow, :authorizationUrl, :tokenUrl
+      # both :name and :in can't be used as method names
+
       # TODO support ^x- Vendor Extensions
 
       def scopes(inline_keys = nil, &block)
@@ -584,6 +661,8 @@ module Swagger
     # v1.2: NOTE: in the spec this is different than Resource Listing's authorization.
     # v1.2: http://goo.gl/PvwUXj#515-authorization-object
     class ApiAuthorizationNode < Node
+      define_key_methods :type, :passAs, :keyname
+
       def as_json
         # Special case: the API Authorization object is weirdly the only array of hashes.
         # Override the default hash behavior and return an array.
@@ -599,10 +678,14 @@ module Swagger
 
     # v1.2: NOTE: in the spec this is different than Resource Listing's scope object.
     # v1.2: http://goo.gl/PvwUXj#5211-scope-object
-    class ApiAuthorizationScopeNode < Node; end
+    class ApiAuthorizationScopeNode < Node
+      define_key_methods :scope, :description
+    end
 
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#responseObject
     class ResponseNode < Node
+      define_key_methods :description
+
       def schema(inline_keys = nil, &block)
         self.data[:schema] = Swagger::Blocks::SchemaNode.call(version: version, inline_keys: inline_keys, &block)
       end
@@ -659,6 +742,12 @@ module Swagger
 
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#schema-object
     class SchemaNode < Node
+      # $ref can't be used as method name
+      define_key_methods :format, :title, :description, :default, :multipleOf,
+                         :maximum, :exclusiveMaximum, :minimum, :exclusiveMinimum, :maxLength, :minLength,
+                         :pattern, :maxItems, :minItems, :uniqueItems, :maxProperties, :minProperties,
+                         :required, :enum, :type, :discriminator, :readOnly, :example
+
       def items(inline_keys = nil, &block)
         self.data[:items] = Swagger::Blocks::ItemsNode.call(version: version, inline_keys: inline_keys, &block)
       end
@@ -684,6 +773,11 @@ module Swagger
 
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#headerObject
     class HeaderNode < Node
+      define_key_methods :description, :type, :collectionFormat, :default,
+                         :maximum, :exclusiveMaximum, :minimum, :exclusiveMinimum, :maxLength, :minLength,
+                         :pattern, :maxItems, :minItems, :uniqueItems,
+                         :maxProperties, :minProperties, :enum, :multipleOf
+
       def items(inline_keys = nil, &block)
         self.data[:items] = Swagger::Blocks::ItemsNode.call(version: version, inline_keys: inline_keys, &block)
       end
@@ -698,6 +792,11 @@ module Swagger
     # v1.2:
     # v2.0:
     class ItemsNode < Node
+      define_key_methods :type
+      define_key_methods '2.0', :format, :collectionFormat, :default,
+                        :maximum, :exclusiveMaximum, :minimum, :exclusiveMinimum, :maxLength, :minLength,
+                        :pattern, :maxItems, :minItems, :uniqueItems, :enum, :multipleOf
+
       def property(name, inline_keys = nil, &block)
         self.data[:properties] ||= Swagger::Blocks::PropertiesNode.new
         self.data[:properties].version = version
@@ -708,6 +807,13 @@ module Swagger
     # v1.2: http://goo.gl/PvwUXj#524-parameter-object
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#parameter-object
     class ParameterNode < Node
+      # both :name and :in can't be used as method names
+      define_key_methods :description, :required, :type, :format, :minimum, :maximum, :enum, :uniqueItems
+      define_key_methods '1.2', :paramType, :allowMultiple, :defaultValue
+      define_key_methods '2.0', :collectionFormat, :allowEmptyValue, :default,
+                         :exclusiveMaximum, :exclusiveMinimum, :maxLength, :minLength,
+                         :pattern, :maxItems, :minItems, :multipleOf
+
       def schema(inline_keys = nil, &block)
         raise NotSupportedError unless is_swagger_2_0?
 
@@ -723,6 +829,8 @@ module Swagger
 
     # v2.0: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#tag-object
     class TagNode < Node
+      # :name can't be used as method name
+      define_key_methods :description
 
       # TODO support ^x- Vendor Extensions
 
@@ -748,6 +856,8 @@ module Swagger
 
     # v1.2: http://goo.gl/PvwUXj#527-model-object
     class ModelNode < Node
+      define_key_methods :id, :description, :required, :subTypes, :discriminator
+
       def property(name, inline_keys = nil, &block)
         self.data[:properties] ||= Swagger::Blocks::PropertiesNode.new
         self.data[:properties].version = version
@@ -757,6 +867,8 @@ module Swagger
 
     # v1.2: http://goo.gl/PvwUXj#527-model-object
     class PropertiesNode < Node
+      define_key_methods :id, :description, :required, :subTypes, :discriminator
+
       def property(name, inline_keys = nil, &block)
         self.data[name] = Swagger::Blocks::PropertyNode.call(version: version, inline_keys: inline_keys, &block)
       end
@@ -764,6 +876,10 @@ module Swagger
 
     # v1.2: http://goo.gl/PvwUXj#527-model-object
     class PropertyNode < Node
+      # $ref can't be used as method name
+      define_key_methods :id, :description, :required, :subTypes, :discriminator, :type, :format,
+                         :minimum, :maximum, :enum, :defaultValue, :uniqueItems
+
       def items(inline_keys = nil, &block)
         self.data[:items] = Swagger::Blocks::ItemsNode.call(version: version, inline_keys: inline_keys, &block)
       end
